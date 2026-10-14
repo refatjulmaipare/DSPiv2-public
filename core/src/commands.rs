@@ -806,6 +806,61 @@ impl DspiCore {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // Output Compressor
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Read one compressor parameter from an output and update the cached state.
+    pub fn get_compressor_param(&mut self, output: u8, index: u8) -> Result<f32> {
+        if output as usize >= self.state.num_output_channels as usize
+            || index >= COMPRESSOR_PARAM_COUNT
+        {
+            return Err(UsbError::InvalidArgument);
+        }
+        let wvalue = build_compressor_get(output, index);
+        let data = self.get_exact(REQ_GET_COMPRESSOR, wvalue, WINDEX_GLOBAL, 4, 4)?;
+        let value = parse_compressor_param(&data)
+            .ok_or(UsbError::ShortRead { expected: 4, actual: data.len() })?;
+        self.state.compressor_params[output as usize].set(index, value);
+        Ok(self.state.compressor_params[output as usize].get(index).unwrap_or(value))
+    }
+
+    /// Set one compressor parameter, clamped to the firmware's supported range.
+    pub fn set_compressor_param(&mut self, output: u8, index: u8, value: f32) -> Result<()> {
+        if output as usize >= self.state.num_output_channels as usize
+            || index >= COMPRESSOR_PARAM_COUNT
+        {
+            return Err(UsbError::InvalidArgument);
+        }
+        let params = &mut self.state.compressor_params[output as usize];
+        if !params.set(index, value) {
+            return Err(UsbError::InvalidArgument);
+        }
+        let value = params.get(index).ok_or(UsbError::InvalidArgument)?;
+        let (wvalue, payload) = build_compressor_set(output, index, value);
+        self.send(REQ_SET_COMPRESSOR, wvalue, WINDEX_GLOBAL, &payload)
+    }
+
+    /// Read and cache gain reduction for every output, returning one output's value.
+    pub fn get_compressor_meter(&mut self, output: u8) -> Result<f32> {
+        let n = self.state.num_output_channels as usize;
+        if output as usize >= n {
+            return Err(UsbError::InvalidArgument);
+        }
+        let length = n.min(MAX_OUTPUTS) * 2;
+        let data = self.get_exact(
+            REQ_COMPRESSOR_METER,
+            0,
+            WINDEX_GLOBAL,
+            length as u16,
+            length,
+        )?;
+        let meter = parse_compressor_meter(&data, n)
+            .ok_or(UsbError::ShortRead { expected: length, actual: data.len() })?;
+        self.state.compressor_meter = meter;
+        Ok(meter[output as usize])
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // Core 1 Mode
     // ═══════════════════════════════════════════════════════════════
 

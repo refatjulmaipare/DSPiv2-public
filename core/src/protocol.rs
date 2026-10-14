@@ -287,6 +287,30 @@ pub const REQ_GET_SERIAL: u8 = 0x7E;
 pub const REQ_GET_PLATFORM: u8 = 0x7F;
 pub const REQ_GET_BUILD_INFO: u8 = 0x80;
 
+// Per-output compressor
+pub const REQ_SET_COMPRESSOR: u8 = 0x41;
+pub const REQ_GET_COMPRESSOR: u8 = 0x82;
+pub const REQ_COMPRESSOR_METER: u8 = 0x9F;
+
+pub const COMPRESSOR_PARAM_ENABLED: u8 = 0;
+pub const COMPRESSOR_PARAM_THRESHOLD_DB: u8 = 1;
+pub const COMPRESSOR_PARAM_RATIO: u8 = 2;
+pub const COMPRESSOR_PARAM_ATTACK_MS: u8 = 3;
+pub const COMPRESSOR_PARAM_RELEASE_MS: u8 = 4;
+pub const COMPRESSOR_PARAM_KNEE_DB: u8 = 5;
+pub const COMPRESSOR_PARAM_MAKEUP_DB: u8 = 6;
+pub const COMPRESSOR_PARAM_COUNT: u8 = 7;
+
+pub(crate) const COMPRESSOR_PARAM_LIMITS: [(f32, f32); COMPRESSOR_PARAM_COUNT as usize] = [
+    (0.0, 1.0),
+    (-60.0, 0.0),
+    (1.0, 20.0),
+    (0.1, 100.0),
+    (10.0, 1000.0),
+    (0.0, 20.0),
+    (0.0, 20.0),
+];
+
 // Output limiter (sub-command multiplexed)
 pub const REQ_LIMITER: u8 = 0x81;
 
@@ -1011,6 +1035,34 @@ pub fn pin_config_wvalue(pin: u8, output: u8) -> u16 {
     ((pin as u16) << 8) | (output as u16)
 }
 
+/// Compressor GET wValue: (output << 8) | parameter index.
+pub fn build_compressor_get(output: u8, index: u8) -> u16 {
+    ((output as u16) << 8) | index as u16
+}
+
+/// Compressor SET request fields: wValue and the four-byte little-endian f32 payload.
+pub fn build_compressor_set(output: u8, index: u8, value: f32) -> (u16, [u8; 4]) {
+    (build_compressor_get(output, index), value.to_le_bytes())
+}
+
+/// Parse a compressor parameter response containing one little-endian f32.
+pub fn parse_compressor_param(data: &[u8]) -> Option<f32> {
+    (data.len() >= 4).then(|| read_f32_le(data, 0))
+}
+
+/// Parse per-output gain reduction in hundredths of a dB.
+pub fn parse_compressor_meter(data: &[u8], num_outputs: usize) -> Option<[f32; MAX_OUTPUTS]> {
+    let n = num_outputs.min(MAX_OUTPUTS);
+    if data.len() < n * 2 {
+        return None;
+    }
+    let mut meter = [0.0; MAX_OUTPUTS];
+    for (output, value) in meter.iter_mut().enumerate().take(n) {
+        *value = read_u16_le(data, output * 2) as f32 / 100.0;
+    }
+    Some(meter)
+}
+
 /// REQ_SET_EQ_PARAM payload: 16-byte EqParamPacket plus the 2-byte LT target
 /// Qp (Q×512). `band` is a PEQ band (0..9) or crossover band (20..23).
 pub fn build_set_filter_packet(ch: u8, band: u8, p: &FilterParams) -> Vec<u8> {
@@ -1144,6 +1196,24 @@ mod tests {
         // ch=9, crossover band 22, param 1 (freq)
         assert_eq!(eq_param_wvalue(9, 22, 1), (9 << 8) | (22 << 3) | 1);
         assert_eq!(eq_param_wvalue(2, 3, 1), 0x0219);
+    }
+
+    #[test]
+    fn compressor_builders_encode_output_index_and_float_payload() {
+        assert_eq!(build_compressor_get(2, 6), 0x0206);
+        assert_eq!(build_compressor_set(2, 6, 1.5), (0x0206, 1.5f32.to_le_bytes()));
+    }
+
+    #[test]
+    fn compressor_response_parsers_decode_float_and_meter() {
+        assert_eq!(parse_compressor_param(&1.5f32.to_le_bytes()), Some(1.5));
+        assert_eq!(parse_compressor_param(&[0, 1]), None);
+
+        let meter = parse_compressor_meter(&[0xD2, 0x04, 0xFA, 0x00], 2).unwrap();
+        assert_eq!(meter[0], 12.34);
+        assert_eq!(meter[1], 2.5);
+        assert_eq!(meter[2], 0.0);
+        assert!(parse_compressor_meter(&[0], 1).is_none());
     }
 
     #[test]

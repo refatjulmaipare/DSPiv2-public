@@ -4,10 +4,75 @@
 //! output-indexed arrays use output indices 0..num_output_channels-1.
 
 use crate::protocol::{
-    BULK_PARAMS_SIZE, SUBHARM_DEFAULTS, SUBHARM_PARAM_COUNT, TUBE_DEFAULTS, TUBE_PARAM_COUNT,
+    BULK_PARAMS_SIZE, COMPRESSOR_PARAM_ENABLED, COMPRESSOR_PARAM_LIMITS,
+    SUBHARM_DEFAULTS, SUBHARM_PARAM_COUNT, TUBE_DEFAULTS, TUBE_PARAM_COUNT,
     UPMIX_DEFAULTS, UPMIX_PARAM_COUNT,
 };
 use crate::types::*;
+
+/// Per-output compressor parameters, indexed by the firmware parameter ids.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct CompressorParams {
+    pub enabled: bool,
+    pub threshold_db: f32,
+    pub ratio: f32,
+    pub attack_ms: f32,
+    pub release_ms: f32,
+    pub knee_db: f32,
+    pub makeup_db: f32,
+}
+
+impl CompressorParams {
+    pub fn get(&self, index: u8) -> Option<f32> {
+        Some(match index {
+            0 => self.enabled as u8 as f32,
+            1 => self.threshold_db,
+            2 => self.ratio,
+            3 => self.attack_ms,
+            4 => self.release_ms,
+            5 => self.knee_db,
+            6 => self.makeup_db,
+            _ => return None,
+        })
+    }
+
+    pub fn set(&mut self, index: u8, value: f32) -> bool {
+        let Some((min, max)) = COMPRESSOR_PARAM_LIMITS.get(index as usize).copied() else {
+            return false;
+        };
+        let value = if index == COMPRESSOR_PARAM_ENABLED {
+            (value != 0.0) as u8 as f32
+        } else {
+            value.clamp(min, max)
+        };
+        match index {
+            0 => self.enabled = value != 0.0,
+            1 => self.threshold_db = value,
+            2 => self.ratio = value,
+            3 => self.attack_ms = value,
+            4 => self.release_ms = value,
+            5 => self.knee_db = value,
+            6 => self.makeup_db = value,
+            _ => return false,
+        }
+        true
+    }
+}
+
+impl Default for CompressorParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            threshold_db: -12.0,
+            ratio: 4.0,
+            attack_ms: 10.0,
+            release_ms: 100.0,
+            knee_db: 0.0,
+            makeup_db: 0.0,
+        }
+    }
+}
 
 /// Firmware compatibility of the connected device, as judged at connect time.
 pub const COMPAT_UNKNOWN: u8 = 0;
@@ -88,6 +153,11 @@ pub struct DspState {
     pub limiter_link_group: [u8; MAX_OUTPUTS],
     pub limiter_threshold_db: [f32; MAX_OUTPUTS],
     pub limiter_release_ms: [f32; MAX_OUTPUTS],
+
+    // ── Output compressor (per output) ─────────────────────────────
+    pub compressor_params: [CompressorParams; MAX_OUTPUTS],
+    /// Gain reduction in dB (positive = reducing).
+    pub compressor_meter: [f32; MAX_OUTPUTS],
 
     // ── Pin configuration ───────────────────────────────────────────
     pub num_pin_outputs: u8,
@@ -251,6 +321,8 @@ impl Default for DspState {
             limiter_link_group: [0; MAX_OUTPUTS],
             limiter_threshold_db: [0.0; MAX_OUTPUTS],
             limiter_release_ms: [100.0; MAX_OUTPUTS],
+            compressor_params: [CompressorParams::default(); MAX_OUTPUTS],
+            compressor_meter: [0.0; MAX_OUTPUTS],
             num_pin_outputs: 3,
             output_pins: [6, 7, 10, 0, 0],
             output_config_mode: 1,

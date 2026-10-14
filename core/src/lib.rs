@@ -525,6 +525,29 @@ pub extern "C" fn dspi_fetch_limiter_meter(core: *mut FfiCore, out_gr: *mut f32)
     })
 }
 
+/// Set compressor parameter `index` of `output`.
+#[no_mangle]
+pub extern "C" fn dspi_set_compressor_param(
+    core: *mut FfiCore,
+    output: u8,
+    index: u8,
+    value: f32,
+) -> bool {
+    with_core(core, |c| c.set_compressor_param(output, index, value).is_ok())
+}
+
+/// Read compressor parameter `index` of `output`; returns NaN on communication error.
+#[no_mangle]
+pub extern "C" fn dspi_get_compressor_param(core: *mut FfiCore, output: u8, index: u8) -> f32 {
+    with_core(core, |c| c.get_compressor_param(output, index).unwrap_or(f32::NAN))
+}
+
+/// Read gain reduction in dB for `output`; returns NaN on communication error.
+#[no_mangle]
+pub extern "C" fn dspi_get_compressor_meter(core: *mut FfiCore, output: u8) -> f32 {
+    with_core(core, |c| c.get_compressor_meter(output).unwrap_or(f32::NAN))
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // FFI — Pins / Output config
 // ═══════════════════════════════════════════════════════════════════
