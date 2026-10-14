@@ -266,6 +266,7 @@ ApplicationWindow {
     }
 
     readonly property bool textFocused: activeFocusItem !== null && activeFocusItem.selectedText !== undefined
+    readonly property bool partialState: bridge.partialState
 
     // App id of the open channel page, or -1 on the dashboard
     readonly property int openChannelId: selectedOutput >= 0 ? selectedOutput + 2 : selectedChannel

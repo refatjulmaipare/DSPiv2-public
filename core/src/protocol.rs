@@ -522,6 +522,10 @@ pub const MIN_WIRE_FORMAT_VERSION: u8 = 16;
 
 /// sizeof(WireBulkParams) at V32.
 pub const BULK_PARAMS_SIZE: usize = 6136;
+/// Fixed bulk header shared across the firmware's versioned layouts.
+pub const BULK_HEADER_SIZE: usize = 16;
+/// Firmware transfer buffer is the next power of two above supported layouts.
+pub const BULK_BUFFER_SIZE: usize = 8192;
 /// Chunk size for REQ_GET/SET_ALL_PARAMS_CHUNK. Kept well under the 4 KB
 /// control-transfer limit (Linux usbfs caps a control transfer at one page).
 pub const BULK_CHUNK_SIZE: usize = 2048;
@@ -579,6 +583,11 @@ pub(crate) fn write_u16_le(data: &mut [u8], offset: usize, val: u16) {
     data[offset..offset + 2].copy_from_slice(&val.to_le_bytes());
 }
 
+/// Read the declared image length from the stable bulk header.
+pub(crate) fn bulk_image_size(header: &[u8]) -> Option<usize> {
+    (header.len() >= 8).then(|| read_u16_le(header, 6) as usize)
+}
+
 /// Why a bulk image was rejected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BulkError {
@@ -616,7 +625,7 @@ fn write_band(data: &mut [u8], off: usize, p: &FilterParams) {
 /// Decode a full V32 bulk image into `state`. The raw image is kept in
 /// `state.bulk_raw` so sections the core does not model round-trip intact.
 pub fn decode_bulk(data: &[u8], state: &mut DspState) -> Result<(), BulkError> {
-    if data.len() < BULK_PARAMS_SIZE {
+    if data.len() < BULK_HEADER_SIZE {
         return Err(BulkError::TooShort);
     }
     let version = data[OFF_HEADER];
@@ -624,6 +633,9 @@ pub fn decode_bulk(data: &[u8], state: &mut DspState) -> Result<(), BulkError> {
     // read from another version could never be written back. Only V32.
     if version != WIRE_FORMAT_VERSION {
         return Err(BulkError::UnsupportedVersion(version));
+    }
+    if data.len() < BULK_PARAMS_SIZE {
+        return Err(BulkError::TooShort);
     }
     let d = data;
     let s = state;
@@ -1199,6 +1211,21 @@ mod tests {
     }
 
     #[test]
+    fn bulk_header_declares_its_wire_image_size() {
+        let mut header = [0u8; BULK_HEADER_SIZE];
+        write_u16_le(&mut header, 6, 5944);
+        assert_eq!(bulk_image_size(&header), Some(5944));
+        assert_eq!(bulk_image_size(&header[..7]), None);
+    }
+
+    #[test]
+    fn unsupported_wire_version_is_reported_before_v32_size_check() {
+        let mut image = vec![0u8; 5944];
+        image[0] = 28;
+        assert_eq!(decode_bulk(&image, &mut DspState::default()), Err(BulkError::UnsupportedVersion(28)));
+    }
+
+    #[test]
     fn compressor_builders_encode_output_index_and_float_payload() {
         assert_eq!(build_compressor_get(2, 6), 0x0206);
         assert_eq!(build_compressor_set(2, 6, 1.5), (0x0206, 1.5f32.to_le_bytes()));
@@ -1266,7 +1293,9 @@ mod tests {
         img[0] = 28;
         let mut s = DspState::default();
         assert_eq!(decode_bulk(&img, &mut s), Err(BulkError::UnsupportedVersion(28)));
-        assert_eq!(decode_bulk(&img[..5944], &mut s), Err(BulkError::TooShort));
+        assert_eq!(decode_bulk(&img[..5944], &mut s), Err(BulkError::UnsupportedVersion(28)));
+        let v32 = v32_image();
+        assert_eq!(decode_bulk(&v32[..5944], &mut s), Err(BulkError::TooShort));
     }
 
     #[test]

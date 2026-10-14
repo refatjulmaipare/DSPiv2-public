@@ -82,6 +82,9 @@ pub const COMPAT_OK: u8 = 1;
 pub const COMPAT_FIRMWARE_TOO_OLD: u8 = 2;
 /// Firmware is newer than this core understands.
 pub const COMPAT_FIRMWARE_TOO_NEW: u8 = 3;
+/// Device is connected and identified, but its bulk state layout is not supported.
+/// Individual vendor requests may still be usable.
+pub const COMPAT_PARTIAL: u8 = 4;
 
 /// Complete DSP parameter state for the connected device.
 /// Owned by DspiCore; the GUI reads it through `dspi_get_state`.

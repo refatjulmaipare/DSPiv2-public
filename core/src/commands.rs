@@ -68,18 +68,20 @@ impl DspiCore {
         self.fetch_platform()?;
         match self.fetch_all_params() {
             Ok(()) => self.state.compat = COMPAT_OK,
-            Err(FetchError::Usb(e)) => return Err(e),
+            Err(FetchError::Usb(e)) => {
+                self.state.compat = COMPAT_PARTIAL;
+                warn!("Bulk settings unavailable; keeping individual device controls enabled: {e}");
+                return Ok(());
+            }
             Err(FetchError::Bulk(BulkError::UnsupportedVersion(v))) => {
                 self.state.format_version = v;
-                self.state.compat = if v > WIRE_FORMAT_VERSION {
-                    COMPAT_FIRMWARE_TOO_NEW
-                } else {
-                    COMPAT_FIRMWARE_TOO_OLD
-                };
+                self.state.compat = COMPAT_PARTIAL;
+                warn!("Bulk wire format V{v} is unsupported; keeping individual device controls enabled");
                 return Ok(());
             }
             Err(FetchError::Bulk(BulkError::TooShort)) => {
-                self.state.compat = COMPAT_FIRMWARE_TOO_OLD;
+                self.state.compat = COMPAT_PARTIAL;
+                warn!("Bulk settings image is incomplete; keeping individual device controls enabled");
                 return Ok(());
             }
         }
@@ -107,6 +109,8 @@ impl DspiCore {
         let s = &mut self.state;
         s.platform_id = info.platform_id;
         s.num_output_channels = info.num_output_channels.min(MAX_OUTPUTS as u8);
+        s.num_input_channels = if info.platform_id == 1 { MAX_INPUTS as u8 } else { 2 };
+        s.num_channels = (s.num_input_channels + s.num_output_channels).min(MAX_CHANNELS as u8);
         s.fw_major = info.fw_major;
         s.fw_minor = info.fw_minor;
         s.fw_patch = info.fw_patch;
@@ -135,13 +139,25 @@ impl DspiCore {
     fn read_bulk_chunked(&self) -> Result<Vec<u8>> {
         let bus = self.conn()?.bus();
         let _session = bus.lock().unwrap_or_else(|e| e.into_inner());
-        let mut out = Vec::with_capacity(BULK_PARAMS_SIZE);
-        while out.len() < BULK_PARAMS_SIZE {
+        let header = self.get(REQ_GET_ALL_PARAMS_CHUNK, 0, WINDEX_OUTPUT, BULK_HEADER_SIZE as u16)?;
+        if header.len() < BULK_HEADER_SIZE {
+            return Err(UsbError::ShortRead { expected: BULK_HEADER_SIZE, actual: header.len() });
+        }
+        let total_size = bulk_image_size(&header).ok_or(UsbError::ShortRead {
+            expected: BULK_HEADER_SIZE,
+            actual: header.len(),
+        })?;
+        if !(BULK_HEADER_SIZE..=BULK_BUFFER_SIZE).contains(&total_size) {
+            return Err(UsbError::InvalidArgument);
+        }
+
+        let mut out = header;
+        while out.len() < total_size {
             let off = out.len();
-            let n = BULK_CHUNK_SIZE.min(BULK_PARAMS_SIZE - off);
+            let n = BULK_CHUNK_SIZE.min(total_size - off);
             let chunk = self.get(REQ_GET_ALL_PARAMS_CHUNK, off as u16, WINDEX_OUTPUT, n as u16)?;
             if chunk.is_empty() {
-                return Err(UsbError::ShortRead { expected: BULK_PARAMS_SIZE, actual: off });
+                return Err(UsbError::ShortRead { expected: total_size, actual: off });
             }
             out.extend_from_slice(&chunk);
         }

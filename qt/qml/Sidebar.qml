@@ -135,7 +135,7 @@ Rectangle {
                     ChannelRow {
                         id: outputRow
                         width: channelColumn.width
-                        visible: bridge.outputEnabled(index)
+                        visible: root.partialState || bridge.outputEnabled(index)
                         height: visible ? 30 : 0
                         channelIndex: index + 2
                         channelName: bridge.channelName(index + 2)
@@ -153,7 +153,7 @@ Rectangle {
                                 outputRow.isClipping = bridge.isClipping(index + 2)
                             }
                             function onStateChanged() {
-                                outputRow.visible = bridge.outputEnabled(index)
+                                outputRow.visible = root.partialState || bridge.outputEnabled(index)
                                 outputRow.isMuted = bridge.outputMuted(index)
                                 outputRow.channelName = bridge.channelName(index + 2)
                             }

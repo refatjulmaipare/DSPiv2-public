@@ -267,7 +267,30 @@ Rectangle {
                 }
             }
 
-            LimiterButton { outputIndex: settingsRoot.outputIndex; height: 26 }
+            Text {
+                width: 36
+                height: 26
+                visible: bridge.partialState
+                text: "N/A"
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                font.pixelSize: 10
+                color: isMacOS ? MacColors.tertiaryLabel : Qt.rgba(1, 1, 1, 0.4)
+                ToolTip.visible: limiterHelp.containsMouse
+                ToolTip.delay: 400
+                ToolTip.text: "The limiter is unavailable because this firmware does not expose its individual control requests."
+                MouseArea {
+                    id: limiterHelp
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                }
+            }
+            LimiterButton {
+                outputIndex: settingsRoot.outputIndex
+                height: 26
+                visible: !bridge.partialState
+            }
         }
     }
 }

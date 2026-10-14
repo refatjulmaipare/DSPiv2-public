@@ -49,6 +49,7 @@ class DSPiBridge : public QObject
     Q_PROPERTY(QString firmwareVersion READ firmwareVersion NOTIFY stateChanged)
     Q_PROPERTY(int compat READ compat NOTIFY stateChanged)
     Q_PROPERTY(QString compatMessage READ compatMessage NOTIFY stateChanged)
+    Q_PROPERTY(bool partialState READ partialState NOTIFY stateChanged)
     Q_PROPERTY(float maxDelayMs READ maxDelayMs NOTIFY stateChanged)
 
     // Global
@@ -144,6 +145,7 @@ public:
     QString firmwareVersion() const;
     int compat() const;
     QString compatMessage() const;
+    bool partialState() const;
     float maxDelayMs() const;
 
     float preampDB() const;

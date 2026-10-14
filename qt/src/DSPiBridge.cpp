@@ -293,6 +293,8 @@ QString DSPiBridge::firmwareVersion() const {
 
 int DSPiBridge::compat() const { return connected() ? state()->compat : COMPAT_UNKNOWN; }
 
+bool DSPiBridge::partialState() const { return connected() && state()->compat == COMPAT_PARTIAL; }
+
 QString DSPiBridge::compatMessage() const {
     switch (compat()) {
     case COMPAT_FIRMWARE_TOO_OLD:
@@ -301,6 +303,10 @@ QString DSPiBridge::compatMessage() const {
     case COMPAT_FIRMWARE_TOO_NEW:
         return QString("This DSPi runs firmware %1, which is newer than this Console understands. "
                        "Update the Console.").arg(firmwareVersion());
+    case COMPAT_PARTIAL:
+        return QString("Connected to firmware %1, but its bulk settings format is not supported. "
+                       "Some features are unavailable; compressor controls can still use individual requests. "
+                       "The limiter is not exposed by this firmware protocol.").arg(firmwareVersion());
     default:
         return "";
     }
