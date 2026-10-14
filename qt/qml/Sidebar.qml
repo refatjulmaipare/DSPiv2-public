@@ -41,7 +41,7 @@ Rectangle {
         property color litColor: "#3a96dd"
         signal clicked()
         signal rightClicked()
-        width: 24
+        width: 20
         height: 28
         Rectangle {
             anchors.fill: parent
@@ -174,7 +174,7 @@ Rectangle {
                 x: 14
                 width: parent.width - 28
                 height: 40
-                spacing: (width - children.length * 24) / Math.max(1, children.length - 1)
+                spacing: (width - children.length * 20) / Math.max(1, children.length - 1)
 
                 QuickButton {
                     anchors.verticalCenter: parent.verticalCenter
@@ -202,6 +202,12 @@ Rectangle {
                     lit: bridge.levellerEnabled
                     onClicked: bridge.setLevellerEnabled(!bridge.levellerEnabled)
                     onRightClicked: levellerWindow.visible = true
+                }
+                QuickButton {
+                    anchors.verticalCenter: parent.verticalCenter
+                    icon: "compressor"; tip: "Output Compressor"
+                    lit: compressorWindow.visible
+                    onClicked: compressorWindow.visible = !compressorWindow.visible
                 }
                 QuickButton {
                     anchors.verticalCenter: parent.verticalCenter

@@ -649,6 +649,7 @@ ApplicationWindow {
     LoudnessWindow { id: loudnessWindow }
     CrossfeedWindow { id: crossfeedWindow }
     VolumeLevellerWindow { id: levellerWindow }
+    CompressorWindow { id: compressorWindow }
     PsychoacousticBassWindow { id: psybassWindow }
     SubharmonicSynthWindow { id: subharmWindow }
     TubeModellerWindow { id: tubeWindow }
@@ -662,7 +663,8 @@ ApplicationWindow {
         if (name.indexOf("url:") === 0) { Qt.openUrlExternally(name.substring(4)); return }
         if (name === "gettingStarted") { setupRequested = true; return }
         var w = { matrix: matrixWindow, loudness: loudnessWindow, crossfeed: crossfeedWindow,
-                  leveller: levellerWindow, psybass: psybassWindow, subharm: subharmWindow,
+                  leveller: levellerWindow, compressor: compressorWindow,
+                  psybass: psybassWindow, subharm: subharmWindow,
                   tube: tubeWindow, upmix: upmixWindow, stats: statsWindow,
                   spectrum: spectrumWindow, graph: graphWindow, siggen: siggenWindow, monitor: monitorWindow,
                   settings: settingsWindow, firmware: firmwareWindow, whatsNew: whatsNewWindow,
@@ -1041,6 +1043,7 @@ ApplicationWindow {
     Shortcut { context: Qt.ApplicationShortcut; sequence: "Ctrl+Shift+L"; enabled: !root.showWizard; onActivated: root.openToolWindow("loudness") }
     Shortcut { context: Qt.ApplicationShortcut; sequence: "Ctrl+Shift+X"; enabled: !root.showWizard; onActivated: root.openToolWindow("crossfeed") }
     Shortcut { context: Qt.ApplicationShortcut; sequence: "Ctrl+Shift+V"; enabled: !root.showWizard; onActivated: root.openToolWindow("leveller") }
+    Shortcut { context: Qt.ApplicationShortcut; sequence: "Ctrl+Shift+C"; enabled: !root.showWizard; onActivated: root.openToolWindow("compressor") }
     Shortcut { context: Qt.ApplicationShortcut; sequence: "Ctrl+Shift+P"; enabled: !root.showWizard; onActivated: root.openToolWindow("psybass") }
     Shortcut { context: Qt.ApplicationShortcut; sequence: "Ctrl+Shift+S"; enabled: !root.showWizard; onActivated: root.openToolWindow("subharm") }
     Shortcut { context: Qt.ApplicationShortcut; sequence: "Ctrl+Shift+D"; enabled: !root.showWizard; onActivated: root.openToolWindow("tube") }

@@ -10,6 +10,7 @@
 #include <QTemporaryFile>
 #include <cstring>
 #include <cmath>
+#include <limits>
 
 // Channel colors matching the macOS Console's ChannelPalette.
 static const char *kInputColors[MAX_INPUTS] = {
@@ -1267,6 +1268,23 @@ float DSPiBridge::limiterThreshold(int out) const { return validOut(state(), out
 float DSPiBridge::limiterRelease(int out) const { return validOut(state(), out) ? state()->limiter_release_ms[out] : 100.0f; }
 int DSPiBridge::limiterLinkGroup(int out) const { return validOut(state(), out) ? state()->limiter_link_group[out] : 0; }
 float DSPiBridge::limiterReduction(int out) const { return validOut(state(), out) ? m_limiterGR[out] : 0.0f; }
+
+bool DSPiBridge::setCompressorParam(int out, int index, float value) {
+    if (!connected() || !validOut(state(), out) || index < 0 || index >= 7) return false;
+    return dspi_set_compressor_param(m_core, static_cast<uint8_t>(out), static_cast<uint8_t>(index), value);
+}
+
+float DSPiBridge::getCompressorParam(int out, int index) {
+    if (!connected() || !validOut(state(), out) || index < 0 || index >= 7)
+        return std::numeric_limits<float>::quiet_NaN();
+    return dspi_get_compressor_param(m_core, static_cast<uint8_t>(out), static_cast<uint8_t>(index));
+}
+
+float DSPiBridge::getCompressorMeter(int out) {
+    if (!connected() || !validOut(state(), out))
+        return std::numeric_limits<float>::quiet_NaN();
+    return dspi_get_compressor_meter(m_core, static_cast<uint8_t>(out));
+}
 
 void DSPiBridge::setLimiterEnabled(int out, bool en) {
     if (!validOut(state(), out)) return;

@@ -425,6 +425,11 @@ public:
     Q_INVOKABLE void unlinkAllLimiters();
     Q_INVOKABLE void disableAllLimiters();
 
+    // Output compressor (output index, firmware parameter index)
+    Q_INVOKABLE bool setCompressorParam(int out, int index, float value);
+    Q_INVOKABLE float getCompressorParam(int out, int index);
+    Q_INVOKABLE float getCompressorMeter(int out);
+
     // Channel clipboard (Copy / Paste Parameters)
     Q_INVOKABLE void copyChannel(int ch);
     Q_INVOKABLE bool canPaste() const;

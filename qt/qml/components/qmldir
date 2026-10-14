@@ -11,6 +11,7 @@ DashboardCard 1.0 DashboardCard.qml
 BorderlessComboBox 1.0 BorderlessComboBox.qml
 InputHeaderCard 1.0 InputHeaderCard.qml
 LimiterButton 1.0 LimiterButton.qml
+CompressorGraph 1.0 CompressorGraph.qml
 CrossoverRow 1.0 CrossoverRow.qml
 BypassDot 1.0 BypassDot.qml
 LinkwitzEditor 1.0 LinkwitzEditor.qml

@@ -9,6 +9,7 @@
         <file>qml/ChannelSettingsView.qml</file>
         <file>qml/MatrixMixerWindow.qml</file>
         <file>qml/LoudnessWindow.qml</file>
+        <file>qml/CompressorWindow.qml</file>
         <file>qml/CrossfeedWindow.qml</file>
         <file>qml/StatsWindow.qml</file>
         <file>qml/AutoEqRebuildWindow.qml</file>
@@ -45,6 +46,7 @@
         <file>qml/components/BorderlessComboBox.qml</file>
         <file>qml/components/InputHeaderCard.qml</file>
         <file>qml/components/LimiterButton.qml</file>
+        <file>qml/components/CompressorGraph.qml</file>
         <file>qml/components/CrossoverRow.qml</file>
         <file>qml/components/BypassDot.qml</file>
         <file>qml/components/LinkwitzEditor.qml</file>
@@ -58,6 +60,7 @@
         <file>icons/tube.svg</file>
         <file>icons/upmix.svg</file>
         <file>icons/gauge.svg</file>
+        <file>icons/compressor.svg</file>
         <file>icons/gear.svg</file>
         <file>icons/spectrum.svg</file>
         <file>icons/signal.svg</file>
