@@ -596,21 +596,24 @@ pub enum BulkError {
     UnsupportedVersion(u8),
 }
 
-fn parse_band(data: &[u8], off: usize) -> FilterParams {
+/// Decode one 16-byte wire band into `p` in place. Writing the named fields
+/// directly (rather than assigning a whole temporary) leaves the struct's
+/// inter-field padding untouched, so a decoded state compares equal to the
+/// same state after a re-decode regardless of how the compiler lays out the
+/// return value of a helper.
+fn decode_band(data: &[u8], off: usize, p: &mut FilterParams) {
     let filter_type = data[off];
     let qp_raw = read_u16_le(data, off + 2);
-    FilterParams {
-        filter_type,
-        bypass: data[off + 1] == 1,
-        freq: read_f32_le(data, off + 4),
-        q: read_f32_le(data, off + 8),
-        gain: read_f32_le(data, off + 12),
-        qp: if filter_type == FILTER_LINKWITZ_TRANSFORM {
-            FilterParams::decode_qp(qp_raw)
-        } else {
-            DEFAULT_Q
-        },
-    }
+    p.filter_type = filter_type;
+    p.bypass = data[off + 1] == 1;
+    p.freq = read_f32_le(data, off + 4);
+    p.q = read_f32_le(data, off + 8);
+    p.gain = read_f32_le(data, off + 12);
+    p.qp = if filter_type == FILTER_LINKWITZ_TRANSFORM {
+        FilterParams::decode_qp(qp_raw)
+    } else {
+        DEFAULT_Q
+    };
 }
 
 fn write_band(data: &mut [u8], off: usize, p: &FilterParams) {
@@ -695,7 +698,7 @@ pub fn decode_bulk(data: &[u8], state: &mut DspState) -> Result<(), BulkError> {
     for ch in 0..MAX_CHANNELS {
         for band in 0..BANDS_PER_CHANNEL {
             let off = OFF_EQ + (ch * FIRMWARE_BANDS_PER_CHANNEL + band) * BAND_SIZE;
-            s.filters[ch][band] = parse_band(d, off);
+            decode_band(d, off, &mut s.filters[ch][band]);
         }
     }
 
@@ -822,7 +825,7 @@ pub fn decode_bulk(data: &[u8], state: &mut DspState) -> Result<(), BulkError> {
     for ch in 0..MAX_CHANNELS {
         for band in 0..MAX_XOVER_BANDS {
             let off = OFF_CROSSOVER + (ch * MAX_XOVER_BANDS + band) * BAND_SIZE;
-            s.xover[ch][band] = parse_band(d, off);
+            decode_band(d, off, &mut s.xover[ch][band]);
         }
     }
 
